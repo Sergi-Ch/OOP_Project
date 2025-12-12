@@ -20,7 +20,7 @@
 
 ## Сборка
 
-1.  Установить Boost
+1.  Установить Boost (Boost ≥ 1.66 (рекомендуется 1.70+))
 2.  Скомпилируйте с линковкой: `ws2_32.lib`
 
         `g++ main.cpp -o dns_resolver.exe -lws2_32 -lboost_system`
