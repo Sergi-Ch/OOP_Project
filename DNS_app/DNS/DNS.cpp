@@ -75,35 +75,38 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 MessageBox(hwnd, L"Введите доменное имя!", L"Ошибка", MB_ICONWARNING);
                 return 0;
             }
-
-            // Запускаем поиск в отдельном потоке
-            std::thread([domain, hwnd]()
-                        {
+            
+            std::thread([domain, hwnd]() {
                 try {
                     boost::asio::io_context io;
                     boost::asio::ip::tcp::resolver resolver(io);
-                    auto results = resolver.resolve(domain, "http");
 
-                    std::string ip;
-                    
-                    if (!results.empty()) {
-                        ip = results.begin()->endpoint().address().to_string();
-                    }
-                    else {
-                        ip = "Адрес не найден";
-                    }
+                    // Асинхронный запрос
+                    resolver.async_resolve(
+                        boost::asio::ip::tcp::resolver::query(domain, "http"),
+                        [hwnd](const boost::system::error_code& ec, boost::asio::ip::tcp::resolver::results_type results) {
+                            std::string ip;
+                            if (!ec && !results.empty()) {
+                                ip = results.begin()->endpoint().address().to_string();
+                            }
+                            else {
+                                ip = "Адрес не найден";
+                            }
 
-                    // Создаём сообщение с результатом
-                    ResultMsg* msgData = new ResultMsg{ ip };
-                    PostMessage(hwnd, WM_USER + 1, 0, reinterpret_cast<LPARAM>(msgData));
+                            ResultMsg* msgData = new ResultMsg{ ip };
+                            PostMessage(hwnd, WM_USER + 1, 0, reinterpret_cast<LPARAM>(msgData));
+                        }
+                    );
 
+                    // Запускаем обработку асинхронной операции
+                    io.run();
                 }
                 catch (const std::exception& e) {
                     std::string error = "Ошибка: " + std::string(e.what());
                     ResultMsg* msgData = new ResultMsg{ error };
                     PostMessage(hwnd, WM_USER + 1, 0, reinterpret_cast<LPARAM>(msgData));
-                } })
-                .detach(); // Отсоединяем поток
+                }
+                }).detach();
         }
         else if (LOWORD(wParam) == 104)
         {
